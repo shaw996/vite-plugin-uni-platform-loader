@@ -1,7 +1,7 @@
 {
   "name": "vite-plugin-uni-platform-loader",
-  "version": "1.0.5",
-  "description": "一个基于uniapp中使用的vite插件，根据平台自动加载文件。",
+  "version": "1.0.6",
+  "description": "一个基于vite的，在uniapp中使用的插件。会根据当前编译的平台自动加载对应的文件。",
   "keywords": [
     "LOADER",
     "loader",
