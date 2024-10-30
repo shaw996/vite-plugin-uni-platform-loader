@@ -4,6 +4,13 @@
 
 例如：h5平台默认加载`index.vue`；微信小程序平台会加载`index.mp-weixin.vue`，若没有则加载`index.vue`。
 
+## 更新日志
+
+| 版本  | 更新内容                           |
+| ----- | ---------------------------------- |
+| 1.0.4 | 更新README                         |
+| 1.0.3 | 修复微信小程序平台文件重新加载问题 |
+
 ## 安装
 
 在`.npmrc`中指定镜像
@@ -24,9 +31,15 @@ npm i -D vite-plugin-uni-platform-loader
 
 ```ts
 import UniPlatformLoader from 'vite-plugin-uni-platform-loader';
+import path from 'path';
 
 export default defineConfig({
-  plugins: [UniPlatformLoader()],
+  plugins: [
+    UniPlatformLoader({
+      platform: process.env.UNI_PLATFORM,
+      rootDir: path.resolve(__dirname, 'src'),
+    }),
+  ],
 });
 ```
 
