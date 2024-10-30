@@ -30,25 +30,24 @@ function annotate(id: string, platform: string) {
   const content = fs.readFileSync(linkId, { encoding: 'utf-8' });
   let newContent = content;
 
-  const mappingRegex = /@uni-platform-loader last-modified-at=\d+/;
-  const oldMapping = content.match(mappingRegex)?.[0];
-  let newMapping: string;
+  const annotateRegex = /@uni-platform-loader last-modified-at=\d+/;
+  const oldAnnotate = content.match(annotateRegex)?.[0];
+  let newAnnotate: string;
 
   switch (extname) {
     case '.html':
     case '.vue':
-      newMapping = `<!-- @uni-platform-loader last-modified-at=${new Date().getTime()} -->`;
+      newAnnotate = `<!-- @uni-platform-loader last-modified-at=${new Date().getTime()} -->`;
       break;
     default:
-      newMapping = `/*** @uni-platform-loader last-modified-at=${new Date().getTime()} ***/`;
+      newAnnotate = `/*** @uni-platform-loader last-modified-at=${new Date().getTime()} ***/`;
       break;
   }
 
-  if (oldMapping) {
-    // 如果已经存在映射，则不处理
-    newContent = content.replace(new RegExp(`.*${oldMapping}.*`), newMapping);
+  if (oldAnnotate) {
+    newContent = content.replace(new RegExp(`.*${oldAnnotate}.*`), newAnnotate);
   } else {
-    newContent = `${content}\n${newMapping}\n`;
+    newContent = `${content}\n${newAnnotate}\n`;
   }
 
   fs.writeFileSync(linkId, newContent, { encoding: 'utf-8' });
