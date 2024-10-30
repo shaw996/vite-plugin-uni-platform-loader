@@ -1,83 +1,128 @@
 /* eslint-disable sort-keys */
 /* eslint-disable sort-keys-fix/sort-keys-fix */
-import type { Plugin, ViteDevServer } from 'vite';
+import type { Plugin } from 'vite';
 
 import fs from 'node:fs';
 import path from 'node:path';
 
-export default function vitePluginUniPlatformLoader(): Plugin {
-  let _server: ViteDevServer;
-  const filesTracked = new Set<string>();
+const PluginName = 'vite-plugin-uni-platform-loader';
+
+export interface UniPlatformLoaderOptions {
+  platform?: string;
+  rootDir?: string;
+}
+
+/**
+ * 添加注释
+ * @param id 文件路径
+ * @param platform 平台
+ */
+function annotate(id: string, platform: string) {
+  const extname = path.extname(id);
+  const linkId = id.replace(`.${platform}${extname}`, extname);
+  const linkExists = fs.existsSync(linkId);
+
+  if (!linkExists) {
+    // 目标文件不存在，不处理
+    return;
+  }
+
+  const content = fs.readFileSync(linkId, { encoding: 'utf-8' });
+  let newContent = content;
+
+  const mappingRegex = /@uni-platform-loader last-modified-at=\d+/;
+  const oldMapping = content.match(mappingRegex)?.[0];
+  let newMapping: string;
+
+  switch (extname) {
+    case '.html':
+    case '.vue':
+      newMapping = `<!-- @uni-platform-loader last-modified-at=${new Date().getTime()} -->`;
+      break;
+    default:
+      newMapping = `/*** @uni-platform-loader last-modified-at=${new Date().getTime()} ***/`;
+      break;
+  }
+
+  if (oldMapping) {
+    // 如果已经存在映射，则不处理
+    newContent = content.replace(new RegExp(`.*${oldMapping}.*`), newMapping);
+  } else {
+    newContent = `${content}\n${newMapping}\n`;
+  }
+
+  fs.writeFileSync(linkId, newContent, { encoding: 'utf-8' });
+}
+
+export default function vitePluginUniPlatformLoader(options: UniPlatformLoaderOptions): Plugin {
+  let { platform, rootDir } = options || {};
+
+  if (!platform) {
+    platform = 'h5';
+  }
+
+  if (!rootDir) {
+    rootDir = path.resolve(__dirname, 'src');
+  }
+
+  // 检查根目录是否存在
+  const rootDirExists = fs.existsSync(rootDir);
+
+  if (!rootDirExists) {
+    throw new Error(`根目录 ${rootDir} 不存在`);
+  }
+
+  // 监听根目录
+  fs.watch(rootDir, { recursive: true }, (_eventType, filename) => {
+    if (!filename || platform === 'h5') {
+      // 没有文件名或平台是h5不处理
+      return;
+    }
+
+    const id = path.resolve(rootDir, filename);
+    const exists = fs.existsSync(id);
+
+    if (!exists) {
+      // 文件不存在
+      // 添加注释
+      annotate(id, platform);
+
+      // 不继续处理
+      return;
+    }
+
+    const extname = path.extname(id);
+    const currentPlatformFileRegexp = new RegExp(`.*.${platform}${extname}$`);
+    const isFile = fs.statSync(id).isFile();
+
+    if (!isFile || !currentPlatformFileRegexp.test(id)) {
+      // 不是文件或不是当前平台文件，不处理
+      return;
+    }
+
+    // 添加注释
+    annotate(id, platform);
+  });
 
   return {
-    name: 'vite-plugin-uni-platform-loader',
+    name: PluginName,
     enforce: 'pre',
-    configureServer(server) {
-      const platform = process.env['UNI_PLATFORM'];
+    transform(code, id) {
+      let newCode = code;
 
-      if (platform && _server !== server) {
-        /**
-         * 调度重新加载
-         * @param file 文件路径
-         */
-        const scheduleReload = (file: string) => {
-          const extname = path.extname(file);
-
-          file = file.replace(`.${platform}${extname}`, extname);
-
-          if (filesTracked.has(file)) {
-            const module = server.moduleGraph.idToModuleMap.get(file);
-
-            if (module) {
-              server.reloadModule(module);
-            }
-          }
-        };
-
-        /**************/
-        // 监听src目录
-        const srcDir = path.resolve(__dirname, 'src');
-
-        server.watcher.add(srcDir);
-        /**************/
-
-        /**************/
-        // 监听文件变化
-        server.watcher.on('change', scheduleReload);
-        /**************/
-
-        /**************/
-        // 监听文件新增
-        server.watcher.on('add', scheduleReload);
-        /**************/
-
-        /**************/
-        // 监听文件删除
-        server.watcher.on('unlink', scheduleReload);
-        /**************/
-
-        _server = server;
-      }
-    },
-    transform(code, file) {
-      filesTracked.add(file);
-
-      let content = code;
-      const platform = process.env['UNI_PLATFORM'];
-
-      // 如果有platform
-      if (platform) {
+      if (platform !== 'h5') {
+        // 平台不是h5时才特殊处理
         // 平台特定文件路径
-        const extname = path.extname(file);
-        const specFileId = file.replace(extname, `.${platform}${extname}`);
+        const extname = path.extname(id);
+        const platformId = id.replace(extname, `.${platform}${extname}`);
 
         // 且平台特定文件是否存在
-        if (fs.existsSync(specFileId)) {
-          content = fs.readFileSync(specFileId, 'utf-8');
+        if (fs.existsSync(platformId)) {
+          newCode = fs.readFileSync(platformId, 'utf-8') ?? code;
         }
       }
 
-      return content;
+      return newCode;
     },
   };
 }
