@@ -54,7 +54,7 @@ function annotate(id: string, platform: string) {
   fs.writeFileSync(linkId, newContent, { encoding: 'utf-8' });
 }
 
-export default function vitePluginUniPlatformLoader(options: UniPlatformLoaderOptions): Plugin {
+export default function vitePluginUniPlatformLoader(options?: UniPlatformLoaderOptions): Plugin {
   let { platform, rootDir } = options || {};
 
   if (!platform) {
@@ -62,7 +62,7 @@ export default function vitePluginUniPlatformLoader(options: UniPlatformLoaderOp
   }
 
   if (!rootDir) {
-    rootDir = path.resolve(__dirname, 'src');
+    rootDir = path.resolve(process.cwd(), 'src');
   }
 
   // 检查根目录是否存在
